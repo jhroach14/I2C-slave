@@ -6,49 +6,48 @@
 #include <string.h>
 #include <pigpiod_if2.h>
 
-//address slave responds to
-#define I2C_ADDR 0x13
+//address slave responds to 0x2A = battery default
+#define I2C_ADDR 0x2A
 
 int pi;
 
-//str needs to be null terminated
-void sendString(char* str, bsc_xfer_t * tPtr){
+//send 2 byte response. clyde protocol only
+void sendResponse(char* str, bsc_xfer_t * tPtr){
 
-	strcpy(tPtr->txBuf, str);
-	transfer.txCnt = strlen(str);
-	bsc_i2c(pi, I2C_ADDR, &transfer);
-
-
+	strncpy(tPtr->txBuf, str, 2);
+	tPtr->txCnt = 2;
+	bsc_i2c(pi, I2C_ADDR, tPtr);
 }
 
-char * mockTest(char *cmd){
-
+//take in cmd array that has command code and parameter. modify response pointer to point to data you want to send back
+void mockTest(char *cmd, char* rsp){
 	
+	rsp[0] = 0x00; //just test values
+	rsp[1] = 0xFF;
 
 }
 
-//method that gets called when i2c command recieved
-void respond(int id, unsigned event, uint32_t tick){
+//method that gets called on I2c write activity
+void respond(int id, unsigned event, uint32_t tick){ 
 	
 	puts("Callback Responding");
 	
 	int status;
 	bsc_xfer_t transfer;//struct that represents the transfer
-	transfer.txCnt = 0;
+	transfer.txCnt = 0;// 0 bytes to send. just want to read for now
 
 	if((status=bsc_i2c(pi, I2C_ADDR, &transfer))>=0){//basic IO command. Just updates transfer buffer
 		
 		printf("Received %d bytes\n", transfer.rxCnt);
 		if(transfer.rxCnt > 0){//if there is data to read
 			
-			char command[transfer.rxCnt];
-			strcpy(command, transfer.rxBuf);//read it
-			command[transfer.rxCnt] = '\0'
+			char command[2];
+			strncpy(command, transfer.rxBuf,2);//read it
 			
-			char * response = mockTest(command);//get response to send back
-			sendString(response, &transfer);//send it
+			char response[2];
+			mockTest(command, response);//get response to send back
+			sendResponse(response, &transfer);//send it
 		}
-					}
 	}
 	else{// below 0 = error
 		puts(pigpio_error(status));
@@ -60,17 +59,17 @@ void respond(int id, unsigned event, uint32_t tick){
 
 int main(){
 
-	bsc_xfer_t transfer;
+	bsc_xfer_t transfer; 
 	transfer.txCnt = 0;
 
 	puts("Slave starting... ");
-		
-	if((pi = pigpio_start(NULL,NULL))<0){
+	
+	if((pi = pigpio_start(NULL,NULL))<0){//null params use default vals
 		printf("connection failed");
 		exit(0);
 	}
 
-	int event = event_callback(pi, 31u, responsd);
+	int event = event_callback(pi, 31u, respond);
 	bsc_i2c(pi, I2C_ADDR, &transfer);
 	
 	size_t size;
