@@ -13,7 +13,8 @@ int pi;
 
 //send 2 byte response. clyde protocol only
 void sendResponse(char* str, bsc_xfer_t * tPtr){
-
+	
+	printf("Sending response %x , %x \n", str[0], str[1]);
 	strncpy(tPtr->txBuf, str, 2);
 	tPtr->txCnt = 2;
 	bsc_i2c(pi, I2C_ADDR, tPtr);
@@ -22,8 +23,9 @@ void sendResponse(char* str, bsc_xfer_t * tPtr){
 //take in cmd array that has command code and parameter. modify response pointer to point to data you want to send back
 void mockTest(char *cmd, char* rsp){
 	
-	rsp[0] = 0x00; //just test values
-	rsp[1] = 0xFF;
+	printf("testing command %x, %x \n",cmd[0],cmd[1]);
+	rsp[0] = 0x01; //just test values
+	rsp[1] = 0x02;
 
 }
 
@@ -68,7 +70,8 @@ int main(){
 		printf("connection failed");
 		exit(0);
 	}
-
+	
+	puts("Connection obtained... ");
 	int event = event_callback(pi, 31u, respond);
 	bsc_i2c(pi, I2C_ADDR, &transfer);
 	
